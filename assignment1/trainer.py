@@ -73,6 +73,12 @@ class BaseTrainer:
         )
 
         global_step = 0
+
+        # Early stopping variables
+        early_stopping = False
+        insufficient_improvement_counter = 0
+        best_val_loss = np.Inf
+
         for epoch in range(num_epochs):
             train_loader = utils.batch_loader(
                 self.X_train, self.Y_train, self.batch_size, shuffle=self.shuffle_dataset)
@@ -89,6 +95,17 @@ class BaseTrainer:
                     val_history["accuracy"][global_step] = accuracy_val
 
                     # TODO (Task 2d): Implement early stopping here.
+                    if early_stopping:
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            insufficient_improvement_counter = 0
+                        else:
+                            insufficient_improvement_counter += 1
+                        
+                        if insufficient_improvement_counter > 9:
+                            print(f"Early stopping triggered at epoch: {epoch} and global step: {global_step}")
+                            return train_history, val_history
+
                     # You can access the validation loss in val_history["loss"]
                 global_step += 1
         return train_history, val_history
