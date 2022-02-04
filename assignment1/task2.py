@@ -16,7 +16,8 @@ def calculate_accuracy(X: np.ndarray, targets: np.ndarray, model: BinaryModel) -
         Accuracy (float)
     """
     # TODO Implement this function (Task 2c)
-    accuracy = 0.0
+    y_pred = model.forward(X)
+    accuracy = np.mean(((y_pred >= 0.5) == targets))
     return accuracy
 
 
@@ -35,7 +36,19 @@ class LogisticTrainer(BaseTrainer):
             loss value (float) on batch
         """
         # TODO: Implement this function (task 2b)
-        loss = 0
+
+        # Perform forward pass
+        y_pred = self.model.forward(X_batch)
+
+        # Perform backwards pass
+        self.model.backward(X_batch, y_pred, Y_batch)
+
+        # Perform gradient descent
+        self.model.w = self.model.w - self.learning_rate * self.model.grad
+
+        # Calculate loss
+        loss = cross_entropy_loss(Y_batch, y_pred)
+
         return loss
 
     def validation_step(self):
@@ -66,7 +79,7 @@ if __name__ == "__main__":
     num_epochs = 50
     learning_rate = 0.05
     batch_size = 128
-    shuffle_dataset = False
+    shuffle_dataset = True
 
     # Load dataset
     category1, category2 = 2, 3
@@ -97,25 +110,25 @@ if __name__ == "__main__":
     print("Validation accuracy:", calculate_accuracy(X_val, Y_val, model))
 
     # Plot loss for first model (task 2b)
-    plt.ylim([0., .2])
-    utils.plot_loss(train_history["loss"],
-                    "Training Loss", npoints_to_average=10)
-    utils.plot_loss(val_history["loss"], "Validation Loss")
-    plt.legend()
-    plt.xlabel("Number of Training Steps")
-    plt.ylabel("Cross Entropy Loss - Average")
-    plt.savefig("task2b_binary_train_loss.png")
-    plt.show()
+    # plt.ylim([0., .2])
+    # utils.plot_loss(train_history["loss"],
+    #                 "Training Loss", npoints_to_average=10)
+    # utils.plot_loss(val_history["loss"], "Validation Loss")
+    # plt.legend()
+    # plt.xlabel("Number of Training Steps")
+    # plt.ylabel("Cross Entropy Loss - Average")
+    # plt.savefig("task2b_binary_train_loss.png")
+    # plt.show()
 
     # Plot accuracy
-    plt.ylim([0.93, .99])
-    utils.plot_loss(train_history["accuracy"], "Training Accuracy")
-    utils.plot_loss(val_history["accuracy"], "Validation Accuracy")
-    plt.xlabel("Number of Training Steps")
-    plt.ylabel("Accuracy")
-    plt.legend()
-    plt.savefig("task2b_binary_train_accuracy.png")
-    plt.show()
+    # plt.ylim([0.93, .99])
+    # utils.plot_loss(train_history["accuracy"], "Training Accuracy")
+    # utils.plot_loss(val_history["accuracy"], "Validation Accuracy")
+    # plt.xlabel("Number of Training Steps")
+    # plt.ylabel("Accuracy")
+    # plt.legend()
+    # plt.savefig("task2b_binary_train_accuracy.png")
+    # plt.show()
 
     # Task 2e - Create a comparison between training with and without shuffling
     shuffle_dataset = True
