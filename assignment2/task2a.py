@@ -4,16 +4,25 @@ import typing
 np.random.seed(1)
 
 
-def pre_process_images(X: np.ndarray):
+def pre_process_images(X: np.ndarray, mean=33.55274553571429, std=78.87550070784701):
     """
     Args:
         X: images of shape [batch size, 784] in the range (0, 255)
+        mean: training set mean
+        std: training set standard deviation
     Returns:
         X: images of shape [batch size, 785] normalized as described in task2a
     """
     assert X.shape[1] == 784,\
         f"X.shape[1]: {X.shape[1]}, should be 784"
-    # TODO implement this function (Task 2a)
+
+    # Normalize the data using training set mean and std
+    X = (X - mean) / std
+
+    # Apply the bias trick
+    ones = np.ones((X.shape[0], 1))
+    X = np.concatenate((X, ones), axis=1)
+
     return X
 
 
@@ -27,8 +36,10 @@ def cross_entropy_loss(targets: np.ndarray, outputs: np.ndarray):
     """
     assert targets.shape == outputs.shape,\
         f"Targets shape: {targets.shape}, outputs: {outputs.shape}"
-    # TODO: Implement this function (copy from last assignment)
-    raise NotImplementedError
+
+    loss = - np.sum(np.sum(targets * np.log(outputs))) / targets.shape[0]
+
+    return loss
 
 
 class SoftmaxModel:
@@ -42,7 +53,7 @@ class SoftmaxModel:
         # Always reset random seed before weight init to get comparable results.
         np.random.seed(1)
         # Define number of input nodes
-        self.I = None
+        self.I = 785
         self.use_improved_sigmoid = use_improved_sigmoid
 
         # Define number of output nodes
@@ -56,10 +67,65 @@ class SoftmaxModel:
         for size in self.neurons_per_layer:
             w_shape = (prev, size)
             print("Initializing weight to shape:", w_shape)
-            w = np.zeros(w_shape)
+            if use_improved_weight_init:
+                 w = np.random.normal(0, 1.0 / np.sqrt(prev), w_shape)
+            else:
+                w = np.random.uniform(-1, 1, w_shape)
+            # w = np.zeros(w_shape)
             self.ws.append(w)
             prev = size
         self.grads = [None for i in range(len(self.ws))]
+
+        # Network information used in methods
+        self.number_of_layers = len(self.neurons_per_layer)
+        self.number_of_hidden_layers = self.number_of_layers - 1
+
+        # Hidden layer inputs
+        self.hidden_layer_inputs = [None for i in range(self.number_of_layers)]
+
+        # Hidden layer activations
+        self.hidden_layer_outputs = [None for i in range(self.number_of_hidden_layers)]
+
+    def __softmax_activation(self, Z: np.ndarray) -> np.ndarray:
+        return np.exp(Z) / np.sum(np.exp(Z), axis=1, keepdims=True)
+
+    def __sigmoid(self, Z: np.ndarray) -> np.ndarray:
+        return  1.0 / (1.0 + np.exp(-Z))
+    
+    def __improved_sigmoid(self, Z: np.ndarray) -> np.ndarray:
+        return (1.7159 * np.tanh(2.0 / 3.0 * Z))
+
+    def __derivated_sigmoid(self, Z: np.ndarray) -> np.ndarray:
+        return self.__sigmoid(Z) * (1 - self.__sigmoid(Z))
+
+    def __derivated_improved_sigmoid(self, Z: np.ndarray) -> np.ndarray:
+        return 1.7159 * 2.0 / 3.0 * (1 - np.tanh(2.0 / 3.0 * Z) ** 2)
+
+    def __activation(self, Z: np.ndarray) -> np.ndarray:
+        """
+        Calculates the activation value
+        Args:
+            Z: input
+        Returns:
+            a: activation value
+        """
+        if self.use_improved_sigmoid:
+            return self.__improved_sigmoid(Z)
+        else:
+            return self.__sigmoid(Z)
+
+    def __derivated_activation(self, Z: np.ndarray) -> np.ndarray:
+        """
+        Calculates the activation value of the derivated activation function
+        Args:
+            Z: input
+        Returns:
+            a_derivated: activation value of derivated activation funciton
+        """
+        if self.use_improved_sigmoid:
+            return self.__derivated_improved_sigmoid(Z)
+        else:
+            return self.__derivated_sigmoid(Z)
 
     def forward(self, X: np.ndarray) -> np.ndarray:
         """
@@ -68,10 +134,19 @@ class SoftmaxModel:
         Returns:
             y: output of model with shape [batch size, num_outputs]
         """
-        # TODO implement this function (Task 2b)
-        # HINT: For performing the backward pass, you can save intermediate activations in variables in the forward pass.
-        # such as self.hidden_layer_output = ...
-        return None
+
+        # Forwarding from input to first hidden layer
+        self.hidden_layer_inputs[0] = X @ self.ws[0]
+        hidden_layer_outputs = self.__activation(self.hidden_layer_inputs[0])
+
+        # Forwarding from hidden layer i to i + 1
+        for i in range(self.number_of_hidden_layers):
+            self.hidden_layer_outputs[i] = hidden_layer_outputs
+            self.hidden_layer_inputs[i + 1] = hidden_layer_outputs @ self.ws[i + 1]
+            hidden_layer_outputs = self.__activation(self.hidden_layer_inputs[i + 1])
+
+        # Compute softmax for the output layer
+        return self.__softmax_activation(self.hidden_layer_inputs[-1])
 
     def backward(self, X: np.ndarray, outputs: np.ndarray,
                  targets: np.ndarray) -> None:
@@ -83,12 +158,36 @@ class SoftmaxModel:
             outputs: outputs of model of shape: [batch size, num_outputs]
             targets: labels/targets of each image of shape: [batch size, num_classes]
         """
-        # TODO implement this function (Task 2b)
         assert targets.shape == outputs.shape,\
             f"Output shape: {outputs.shape}, targets: {targets.shape}"
-        # A list of gradients.
-        # For example, self.grads[0] will be the gradient for the first hidden layer
-        self.grads = []
+
+        # Calculate the error term from output to hidden layer
+        delta_k = - (targets - outputs) / targets.shape[0]
+
+        if self.number_of_hidden_layers >= 1:
+            # In case there are one or more hidden layers,
+            # calculate backpropagation for all layers
+
+            # Gradients from output to penultimate layer (last hidden layer)
+            self.grads[-1] = self.hidden_layer_outputs[-1].T @ delta_k
+
+            # Gradients between hidden layers (0 < i < number of layers)
+            delta_j = delta_k
+            for i in range(self.number_of_hidden_layers, 1, -1):
+                delta_j = self.__derivated_activation(self.hidden_layer_inputs[i]) * (delta_j @ self.ws[i + 1].T)
+                self.grads[i] = self.hidden_layer_outputs[i - 1].T @ delta_j
+            
+            # Gradients between hidden and input layers
+            print(self.hidden_layer_inputs[0].shape)
+            print(delta_j.shape)
+            print(self.ws[1].shape)
+            print(delta_j @ self.ws[1].T)
+            delta_j = self.__derivated_activation(self.hidden_layer_inputs[0]) * (delta_j @ self.ws[1].T)
+            self.grads[0] = X.T @ delta_j
+        else:
+            # In case there are no hidden layers
+            # Gradients from output to input layer
+            self.grads[-1] = X.T @ delta_k
 
         for grad, w in zip(self.grads, self.ws):
             assert grad.shape == w.shape,\
@@ -106,8 +205,8 @@ def one_hot_encode(Y: np.ndarray, num_classes: int):
     Returns:
         Y: shape [Num examples, num classes]
     """
-    # TODO: Implement this function (copy from last assignment)
-    raise NotImplementedError
+    Y_one_hot_encoded = np.eye(num_classes)[np.copy(Y).reshape(-1)]
+    return Y_one_hot_encoded
 
 
 def gradient_approximation_test(

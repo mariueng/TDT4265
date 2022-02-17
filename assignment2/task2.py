@@ -15,8 +15,8 @@ def calculate_accuracy(X: np.ndarray, targets: np.ndarray, model: SoftmaxModel) 
     Returns:
         Accuracy (float)
     """
-    # TODO: Implement this function (copy from last assignment)
-    accuracy = 0
+    y_pred = model.forward(X)
+    accuracy = np.mean(((y_pred >= 0.5) == targets))
     return accuracy
 
 
@@ -32,7 +32,9 @@ class SoftmaxTrainer(BaseTrainer):
         self.momentum_gamma = momentum_gamma
         self.use_momentum = use_momentum
         # Init a history of previous gradients to use for implementing momentum
-        self.previous_grads = [np.zeros_like(w) for w in self.model.ws]
+        self.previous_grads = [np.copy(w) for w in self.model.ws]
+        self.momentum = [np.zeros_like(w) for w in self.model.ws]
+
 
     def train_step(self, X_batch: np.ndarray, Y_batch: np.ndarray):
         """
@@ -46,11 +48,26 @@ class SoftmaxTrainer(BaseTrainer):
         Returns:
             loss value (float) on batch
         """
-        # TODO: Implement this function (task 2c)
 
-        loss = 0
+        # Perform forward step
+        outputs = self.model.forward(X_batch)
 
-        loss = cross_entropy_loss(Y_batch, logits)  # sol
+        # Perform backward step
+        self.model.backward(X_batch, outputs, Y_batch)
+
+        # Perform gradient descent
+        if self.use_momentum:
+            for i in range(self.model.number_of_layers):
+                self.momentum[i] = self.previous_grads[i] + self.momentum_gamma * self.momentum[i]
+                self.model.ws[i] = self.model.ws[i] - self.learning_rate * self.momentum[i]
+            # Copy previous grads to be used in next training step
+            self.previous_grads = np.copy(self.model.grads)
+        else:
+            for i in range(self.model.number_of_layers):
+                self.model.ws[i] = self.model.ws[i] - self.learning_rate * self.model.grads[i]
+
+        # Calculate the loss
+        loss = cross_entropy_loss(Y_batch, outputs)
 
         return loss
 
@@ -129,7 +146,7 @@ if __name__ == "__main__":
     plt.ylabel("Cross Entropy Loss - Average")
     # Plot accuracy
     plt.subplot(1, 2, 2)
-    plt.ylim([0.90, .99])
+    plt.ylim([0.90, 1.00])
     utils.plot_loss(train_history["accuracy"], "Training Accuracy")
     utils.plot_loss(val_history["accuracy"], "Validation Accuracy")
     plt.xlabel("Number of Training Steps")
