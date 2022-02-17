@@ -25,7 +25,8 @@ def batch_loader(
         num_batches = int(np.ceil(len(X) / batch_size))
     indices = list(range(len(X)))
 
-    # TODO (copy from last assignment) implement dataset shuffling here.
+    if shuffle:
+        np.random.shuffle(indices)
 
     for i in range(num_batches):
         # select a set of indices for each batch of samples
@@ -57,6 +58,12 @@ def load_full_mnist():
 
     print(f"Train shape: X: {X_train.shape}, Y: {Y_train.shape}")
     print(f"Validation shape: X: {X_val.shape}, Y: {Y_val.shape}")
+
+    # Calculate training set mean and standard deviation
+    # mean = np.mean(X_train)
+    # print(f'Training set mean: {mean}')
+    # std = np.std(X_train)
+    # print(f'Training set std: {std}')
 
     return X_train, Y_train, X_val, Y_val
 

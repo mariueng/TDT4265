@@ -72,6 +72,11 @@ class BaseTrainer:
             accuracy={}
         )
 
+        early_stopping = True
+        early_stopping_limit = 50
+        insufficient_improvement_counter = 0
+        best_val_loss = np.Inf
+    
         global_step = 0
         for epoch in range(num_epochs):
             train_loader = utils.batch_loader(
@@ -87,6 +92,17 @@ class BaseTrainer:
                     train_history["accuracy"][global_step] = accuracy_train
                     val_history["loss"][global_step] = val_loss
                     val_history["accuracy"][global_step] = accuracy_val
-                    # TODO: Implement early stopping (copy from last assignment)
+
+                    # Early stopping
+                    if early_stopping:
+                        if val_loss < best_val_loss:
+                            best_val_loss = val_loss
+                            insufficient_improvement_counter = 0
+                        else:
+                            insufficient_improvement_counter += 1
+                        
+                        if insufficient_improvement_counter >= early_stopping_limit:
+                            print(f"Early stopping triggered at epoch: {epoch} and global step: {global_step}")
+                            return train_history, val_history
                 global_step += 1
         return train_history, val_history
