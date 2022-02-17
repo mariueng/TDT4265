@@ -66,7 +66,7 @@ class SoftmaxModel:
         prev = self.I
         for size in self.neurons_per_layer:
             w_shape = (prev, size)
-            print("Initializing weight to shape:", w_shape)
+            # print("Initializing weight to shape:", w_shape)
             if use_improved_weight_init:
                  w = np.random.normal(0, 1.0 / np.sqrt(prev), w_shape)
             else:
@@ -173,15 +173,15 @@ class SoftmaxModel:
 
             # Gradients between hidden layers (0 < i < number of layers)
             delta_j = delta_k
-            for i in range(self.number_of_hidden_layers, 1, -1):
+            for i in range(self.number_of_hidden_layers - 1, 0, -1):
                 delta_j = self.__derivated_activation(self.hidden_layer_inputs[i]) * (delta_j @ self.ws[i + 1].T)
                 self.grads[i] = self.hidden_layer_outputs[i - 1].T @ delta_j
-            
+
             # Gradients between hidden and input layers
-            print(self.hidden_layer_inputs[0].shape)
-            print(delta_j.shape)
-            print(self.ws[1].shape)
-            print(delta_j @ self.ws[1].T)
+            # print(self.hidden_layer_inputs[0].shape)
+            # print(delta_j.shape)
+            # print(self.ws[1].shape)
+            # print(delta_j @ self.ws[1].T)
             delta_j = self.__derivated_activation(self.hidden_layer_inputs[0]) * (delta_j @ self.ws[1].T)
             self.grads[0] = X.T @ delta_j
         else:
