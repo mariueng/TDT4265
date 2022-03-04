@@ -22,7 +22,7 @@ def compute_loss_and_accuracy(
     """
     average_loss = 0
     accuracy = 0
-    correct_pred
+    correct_pred = 0
 
     with torch.no_grad():
         for (X_batch, Y_batch) in dataloader:
@@ -53,7 +53,8 @@ class Trainer:
                  early_stop_count: int,
                  epochs: int,
                  model: torch.nn.Module,
-                 dataloaders: typing.List[torch.utils.data.DataLoader]):
+                 dataloaders: typing.List[torch.utils.data.DataLoader],
+                 use_adam: bool=False):
         """
             Initialize our trainer class.
         """
@@ -70,9 +71,14 @@ class Trainer:
         self.model = utils.to_cuda(self.model)
         print(self.model)
 
-        # Define our optimizer. SGD = Stochastich Gradient Descent
-        self.optimizer = torch.optim.SGD(self.model.parameters(),
-                                         self.learning_rate)
+        if use_adam:
+            self.optimizer = torch.optim.Adam(self.model.parameters(),
+                                          lr=self.learning_rate,
+                                          weight_decay=0.0)
+        else:
+            # Define our optimizer. SGD = Stochastich Gradient Descent
+            self.optimizer = torch.optim.SGD(self.model.parameters(),
+                                             lr=self.learning_rate)
 
         # Load our dataset
         self.dataloader_train, self.dataloader_val, self.dataloader_test = dataloaders

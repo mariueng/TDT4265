@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from PIL import Image
+from pathlib import Path
 import torchvision
 import torch
 import numpy as np
@@ -18,6 +19,11 @@ image_transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
     torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
+
+modules = list(model.children())
+for i in range(len(modules) - 2):
+    image = modules[i].forward(image)
+
 image = image_transform(image)[None]
 print("Image shape:", image.shape)
 
@@ -46,3 +52,31 @@ def torch_image_to_numpy(image: torch.Tensor):
 
 
 indices = [14, 26, 32, 49, 52]
+
+# Task 4b
+def visualize_filter_activations():
+    # Create figure and axes
+    plot_path = Path("plots")
+    plot_path.mkdir(exist_ok=True)
+    fig, axs = plt.subplots(2, len(indices), figsize=(20, 18))
+
+    plt.setp(axs[0, :],
+            xticks=[x for x in range(0, 6 + 1, 2)],
+            yticks=[y for y in range(0, 6 + 1)])
+    plt.setp(axs[1, :],
+            xticks=[y for y in range(0, 101, 20)],
+            yticks=[y for y in range(0, 101, 20)])
+
+    # For each indice, retrieve weights and filters and add them to axis with the corresponding index.
+    for i, indice in enumerate(indices):
+        w = torch_image_to_numpy(first_conv_layer.weight[indice])
+        f = torch_image_to_numpy(activation[0, indice]) 
+        axs[0, i].imshow(w)
+        axs[1, i].imshow(f, cmap="gray")
+
+    plt.show()
+    plt.savefig(plot_path.joinpath(f"Task4b.png"))
+
+
+if __name__ == "__main__":
+    visualize_filter_activations()

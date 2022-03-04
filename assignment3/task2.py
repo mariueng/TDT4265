@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import utils
 from torch import nn
 from dataloaders import load_cifar10
-from trainer import Trainer
+from trainer import Trainer, compute_loss_and_accuracy
 
 
 class ExampleModel(nn.Module):
@@ -18,28 +18,65 @@ class ExampleModel(nn.Module):
                 num_classes: Number of classes we want to predict (10)
         """
         super().__init__()
-        # TODO: Implement this function (Task  2a)
+
         num_filters = 32  # Set number of filters in first conv layer
         self.num_classes = num_classes
         # Define the convolutional layers
         self.feature_extractor = nn.Sequential(
+            # ------- Layer 1 -------
             nn.Conv2d(
                 in_channels=image_channels,
                 out_channels=num_filters,
                 kernel_size=5,
                 stride=1,
                 padding=2
-            )
+            ),
+            nn.ReLU(),
+            nn.MaxPool2d(
+                kernel_size=2,
+                stride=2
+            ),
+            # ------- Layer 2 -------
+            nn.Conv2d(
+                in_channels=num_filters,
+                out_channels=num_filters * 2,
+                kernel_size=5,
+                stride=1,
+                padding=2
+            ),
+            nn.ReLU(),
+            nn.MaxPool2d(
+                kernel_size=2,
+                stride=2
+            ),
+            # ------- Layer 3 -------
+            nn.Conv2d(
+                in_channels=num_filters * 2,
+                out_channels=num_filters * 4,
+                kernel_size=5,
+                stride=1,
+                padding=2
+            ),
+            nn.ReLU(),
+            nn.MaxPool2d(
+                kernel_size=2,
+                stride=2
+            ),
+            # ------- Flatten -------
+            nn.Flatten()
         )
-        # The output of feature_extractor will be [batch_size, num_filters, 16, 16]
-        self.num_output_features = 32*32*32
+        # The output of feature_extractor will be [batch_size, num_filters, 16, 16] 
+        self.num_output_features = 4 * 4 * 128
+
         # Initialize our last fully connected layer
         # Inputs all extracted features from the convolutional layers
         # Outputs num_classes predictions, 1 for each class.
         # There is no need for softmax activation function, as this is
         # included with nn.CrossEntropyLoss
         self.classifier = nn.Sequential(
-            nn.Linear(self.num_output_features, num_classes),
+            nn.Linear(self.num_output_features, 64),
+            nn.ReLU(),
+            nn.Linear(64, num_classes)
         )
 
     def forward(self, x):
@@ -50,7 +87,8 @@ class ExampleModel(nn.Module):
         """
         # TODO: Implement this function (Task  2a)
         batch_size = x.shape[0]
-        out = x
+        feature_extractor = self.feature_extractor(x)
+        out = self.classifier(feature_extractor)
         expected_shape = (batch_size, self.num_classes)
         assert out.shape == (batch_size, self.num_classes),\
             f"Expected output of forward pass to be: {expected_shape}, but got: {out.shape}"
@@ -93,8 +131,24 @@ def main():
         model,
         dataloaders
     )
+    print("Training...")
     trainer.train()
+    print("Training done!")
     create_plots(trainer, "task2")
+
+    # Task 2b
+
+    dl_train, dl_val, dl_test = dataloaders
+
+    _, train_acc = compute_loss_and_accuracy(dl_train, trainer.model, nn.CrossEntropyLoss())
+    _, val_acc = compute_loss_and_accuracy(dl_val, trainer.model, nn.CrossEntropyLoss())
+    _, test_acc = compute_loss_and_accuracy(dl_test, trainer.model, nn.CrossEntropyLoss())
+
+    print('Accuracies on different datasets')
+    print(f'Training accuracy: {train_acc}')
+    print(f'Training accuracy: {val_acc}')
+    print(f'Training accuracy: {test_acc}')
+    
 
 if __name__ == "__main__":
     main()
