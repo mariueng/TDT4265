@@ -7,8 +7,10 @@ name = "pypi"
 numpy = "*"
 matplotlib = "*"
 pillow = "==9.0.0"
+scipy = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.10"
