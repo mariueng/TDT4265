@@ -9,13 +9,15 @@ from ssd.data.transforms import  Normalize, ToTensor, GroundTruthBoxesToAnchors
 from ssd.data.mnist import MNISTDetectionDataset
 from .utils import get_dataset_dir, get_output_dir
 
+folder = "/voc_basic"
+
 train = dict(
     batch_size=32,
     amp=True, # Automatic mixed precision
     log_interval=20,
     seed=0,
     epochs=50,
-    _output_dir=get_output_dir(),
+    _output_dir=get_output_dir(folder),
     imshape=(300, 300),
     image_channels=3
 )
