@@ -8,6 +8,8 @@ numpy = "*"
 matplotlib = "*"
 pillow = "==9.0.0"
 scipy = "*"
+torch = "*"
+torchvision = "*"
 
 [dev-packages]
 ipykernel = "*"
